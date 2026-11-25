@@ -1,454 +1,455 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" class="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Gift Aggregator — Поисковик подарков Telegram</title>
+  <title>Giftoxi — Поисковик подарков в GRAM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
   <style>
     :root {
-      --bg-color: var(--tg-theme-bg-color, #0f1115);
-      --secondary-bg: var(--tg-theme-secondary-bg-color, #181b22);
-      --text-color: var(--tg-theme-text-color, #ffffff);
-      --hint-color: var(--tg-theme-hint-color, #8e96a4);
-      --accent-color: var(--tg-theme-button-color, #2ea6ff);
-      --accent-text: var(--tg-theme-button-text-color, #ffffff);
-      --border-color: rgba(255, 255, 255, 0.08);
-      --badge-best: #10b981;
+      --tg-bg: var(--tg-theme-bg-color, #0c0e12);
+      --tg-secondary: var(--tg-theme-secondary-bg-color, #161920);
+      --tg-text: var(--tg-theme-text-color, #ffffff);
+      --tg-hint: var(--tg-theme-hint-color, #8b93a1);
+      --gram-accent: #38bdf8;
     }
 
     * {
       box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       -webkit-tap-highlight-color: transparent;
     }
 
     body {
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      padding-bottom: 24px;
+      background-color: var(--tg-bg);
+      color: var(--tg-text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 0;
       overflow-x: hidden;
     }
 
-    /* Шапка и поиск */
-    .header {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background-color: var(--bg-color);
-      padding: 12px 16px 8px;
-      border-bottom: 1px solid var(--border-color);
-      backdrop-filter: blur(12px);
-    }
-
-    .top-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-    }
-
-    .app-title {
-      font-size: 18px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .stats-badge {
-      font-size: 12px;
-      color: var(--hint-color);
-      background: var(--secondary-bg);
-      padding: 4px 8px;
-      border-radius: 8px;
-    }
-
-    .search-box {
-      position: relative;
-      margin-bottom: 10px;
-    }
-
-    .search-input {
-      width: 100%;
-      background-color: var(--secondary-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 10px 36px 10px 36px;
-      color: var(--text-color);
-      font-size: 15px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    .search-input:focus {
-      border-color: var(--accent-color);
-    }
-
-    .search-icon {
-      position: absolute;
-      left: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--hint-color);
-      font-size: 15px;
-      pointer-events: none;
-    }
-
-    .clear-btn {
-      position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      background: none;
-      border: none;
-      color: var(--hint-color);
-      font-size: 16px;
-      cursor: pointer;
+    .no-scrollbar::-webkit-scrollbar {
       display: none;
-      padding: 4px;
     }
-
-    /* Фильтры маркетов */
-    .filters-scroll {
-      display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      padding-bottom: 6px;
+    .no-scrollbar {
+      -ms-overflow-style: none;
       scrollbar-width: none;
     }
-    .filters-scroll::-webkit-scrollbar {
-      display: none;
+
+    @keyframes cardFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
     }
 
-    .chip {
-      background-color: var(--secondary-bg);
-      color: var(--hint-color);
-      border: 1px solid var(--border-color);
-      border-radius: 20px;
-      padding: 6px 14px;
-      font-size: 13px;
-      font-weight: 500;
-      white-space: nowrap;
-      cursor: pointer;
-      transition: all 0.2s ease;
+    .card-animate {
+      animation: cardFadeIn 0.22s ease forwards;
     }
 
-    .chip.active {
-      background-color: var(--accent-color);
-      color: var(--accent-text);
-      border-color: var(--accent-color);
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
     }
 
-    /* Панель сортировки */
-    .controls-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 16px;
-      font-size: 13px;
-      color: var(--hint-color);
-    }
-
-    .sort-select {
-      background: var(--secondary-bg);
-      color: var(--text-color);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 5px 10px;
-      font-size: 13px;
-      outline: none;
-    }
-
-    /* Сетка карточек */
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-      padding: 0 16px;
-    }
-
-    .card {
-      background-color: var(--secondary-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      transition: transform 0.15s ease;
-    }
-
-    .card:active {
-      transform: scale(0.98);
-    }
-
-    .card-img-wrap {
-      position: relative;
-      width: 100%;
-      aspect-ratio: 1 / 1;
-      background: radial-gradient(circle at center, rgba(46, 166, 255, 0.12), transparent 70%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 56px;
-    }
-
-    .market-tag {
-      position: absolute;
-      top: 8px;
-      left: 8px;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 3px 8px;
-      border-radius: 6px;
-      background: rgba(0, 0, 0, 0.65);
-      backdrop-filter: blur(4px);
-      color: #fff;
-    }
-
-    .best-price-tag {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      font-size: 10px;
-      font-weight: 700;
-      padding: 3px 6px;
-      border-radius: 6px;
-      background: var(--badge-best);
-      color: #fff;
-      text-transform: uppercase;
-    }
-
-    .card-body {
-      padding: 10px 12px 12px;
-      display: flex;
-      flex-direction: column;
-      flex-grow: 1;
-      justify-content: space-between;
-    }
-
-    .gift-name {
-      font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 2px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .gift-meta {
-      font-size: 12px;
-      color: var(--hint-color);
-      margin-bottom: 10px;
-    }
-
-    .price-row {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      margin-bottom: 8px;
-    }
-
-    .price-ton {
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--accent-color);
-    }
-
-    .price-stars {
-      font-size: 11px;
-      color: var(--hint-color);
-    }
-
-    .buy-btn {
-      width: 100%;
-      background-color: var(--accent-color);
-      color: var(--accent-text);
-      border: none;
-      border-radius: 10px;
-      padding: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      text-align: center;
-    }
-
-    /* Пустое состояние */
-    .empty-state {
-      grid-column: 1 / -1;
-      text-align: center;
-      padding: 48px 16px;
-      color: var(--hint-color);
-    }
-    .empty-state span {
-      font-size: 40px;
-      display: block;
-      margin-bottom: 10px;
+    .live-dot {
+      animation: pulseDot 2s infinite ease-in-out;
     }
   </style>
 </head>
-<body>
+<body class="min-h-screen pb-12 selection:bg-sky-400/30">
 
-  <div class="header">
-    <div class="top-bar">
-      <div class="app-title">🎁 Gift Scanner</div>
-      <div class="stats-badge" id="totalCount">Загрузка...</div>
+  <!-- Закрепленная шапка -->
+  <header class="sticky top-0 z-30 bg-[#0c0e12]/90 backdrop-blur-xl border-b border-white/[0.08]">
+    <div class="max-w-4xl mx-auto px-4 pt-3 pb-2.5">
+      
+      <!-- Логотип G, название Giftoxi и статус GRAM -->
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-400 via-blue-500 to-indigo-600 flex items-center justify-center text-white font-black text-base shadow-lg shadow-sky-500/20 select-none">
+            G
+          </div>
+          <div>
+            <h1 class="text-[19px] font-extrabold tracking-tight text-white leading-none">Giftoxi</h1>
+            <p class="text-[11px] text-[#8b93a1] mt-0.5">Поисковик подарков Telegram</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-400/10 border border-sky-400/25 text-sky-400 text-[11px] font-bold">
+          <span class="w-1.5 h-1.5 rounded-full bg-sky-400 live-dot"></span>
+          <span id="syncStatus">GRAM · Live</span>
+        </div>
+      </div>
+
+      <!-- Поисковая строка -->
+      <div class="relative mb-2.5">
+        <svg class="w-4 h-4 text-[#8b93a1] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <input 
+          type="text" 
+          id="searchInput" 
+          placeholder="Коллекция, #номер или фон..." 
+          class="w-full bg-[#161920] text-white placeholder-[#8b93a1] text-sm rounded-xl pl-10 pr-9 py-2.5 border border-white/[0.08] focus:border-sky-400 focus:outline-none transition-colors"
+        />
+        <button id="clearBtn" onclick="clearSearch()" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[#8b93a1] hover:text-white transition-colors" aria-label="Очистить поиск">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Фильтры по маркетплейсам -->
+      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5" id="marketFilters">
+        <button data-market="ALL" class="chip active px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-sky-400 text-[#081018] border border-sky-400 transition-all">
+          Все маркеты
+        </button>
+        <button data-market="TG Market" class="chip px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-[#161920] text-[#8b93a1] border border-white/[0.08] hover:text-white transition-all">
+          TG Market
+        </button>
+        <button data-market="Fragment" class="chip px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-[#161920] text-[#8b93a1] border border-white/[0.08] hover:text-white transition-all">
+          Fragment
+        </button>
+        <button data-market="Getgems" class="chip px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-[#161920] text-[#8b93a1] border border-white/[0.08] hover:text-white transition-all">
+          Getgems
+        </button>
+        <button data-market="Marketapp" class="chip px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-[#161920] text-[#8b93a1] border border-white/[0.08] hover:text-white transition-all">
+          Marketapp
+        </button>
+        <button data-market="Portals" class="chip px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-[#161920] text-[#8b93a1] border border-white/[0.08] hover:text-white transition-all">
+          Portals
+        </button>
+        <button data-market="MRKT" class="chip px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-[#161920] text-[#8b93a1] border border-white/[0.08] hover:text-white transition-all">
+          MRKT
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Панель управления -->
+  <main class="max-w-4xl mx-auto px-4 pt-3">
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+      <span id="resultsLabel" class="text-xs font-medium text-[#8b93a1]">Найдено: 0</span>
+      
+      <div class="flex items-center gap-2">
+        <button id="floorBtn" onclick="toggleFloorOnly()" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[#161920] text-[#8b93a1] border border-white/[0.08] hover:text-white transition-all">
+          Только флор
+        </button>
+        
+        <select id="sortSelect" onchange="handleSortChange(this.value)" class="bg-[#161920] text-white text-xs font-medium rounded-lg px-2.5 py-1.5 border border-white/[0.08] focus:outline-none focus:border-sky-400 cursor-pointer">
+          <option value="price_asc">Дешевле в GRAM</option>
+          <option value="price_desc">Дороже в GRAM</option>
+          <option value="num_asc">По номеру #</option>
+        </select>
+      </div>
     </div>
 
-    <div class="search-box">
-      <span class="search-icon">🔍</span>
-      <input type="text" id="searchInput" class="search-input" placeholder="Поиск подарка или #номера..." />
-      <button id="clearBtn" class="clear-btn">✕</button>
+    <!-- 2-колоночная адаптивная сетка карточек -->
+    <div id="giftsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+      <!-- Рендер через JS -->
     </div>
+  </main>
 
-    <div class="filters-scroll" id="marketFilters">
-      <div class="chip active" data-market="ALL">Все маркеты</div>
-      <div class="chip" data-market="Fragment">Fragment</div>
-      <div class="chip" data-market="Getgems">Getgems</div>
-      <div class="chip" data-market="Marketapp">Marketapp</div>
-      <div class="chip" data-market="Portals">Portals</div>
-      <div class="chip" data-market="MRKT">MRKT</div>
+  <!-- Модальное окно детального просмотра и сравнения цен -->
+  <div id="detailModal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div onclick="closeModal()" class="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity"></div>
+    <div class="relative w-full max-w-md bg-[#13161d] border-t sm:border border-white/10 rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl z-10 max-h-[88vh] flex flex-col">
+      <div class="w-full flex justify-center pt-2.5 pb-1 sm:hidden">
+        <div class="w-10 h-1 rounded-full bg-white/20"></div>
+      </div>
+      <div id="modalContent" class="p-5 overflow-y-auto"></div>
     </div>
   </div>
 
-  <div class="controls-bar">
-    <span id="resultsLabel">Найдено: 0</span>
-    <select id="sortSelect" class="sort-select">
-      <option value="price_asc">Сначала дешевле</option>
-      <option value="price_desc">Сначала дороже</option>
-      <option value="num_asc">По номеру #</option>
-    </select>
+  <!-- Всплывающее уведомление -->
+  <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-all duration-200 translate-y-2">
+    <div class="bg-[#1c212b] text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-xl border border-white/10 flex items-center gap-2">
+      <span id="toastText">Переход на маркет...</span>
+    </div>
   </div>
-
-  <div class="grid" id="giftsGrid"></div>
 
   <script>
-    // Инициализация Telegram Web App
+    // Инициализация Telegram Web App SDK
     const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.ready();
       tg.expand();
     }
 
-    // Демо-база данных (на следующем шаге заменим на fetch('https://.../gifts.json'))
-    const GIFTS_DATA = [
-      { id: 1, name: "Jolly Chimp", number: 412, emoji: "🐵", backdrop: "Midnight", market: "Getgems", priceTon: 14.5, url: "https://getgems.io" },
-      { id: 2, name: "Jolly Chimp", number: 1088, emoji: "🐵", backdrop: "Cyber Gold", market: "Fragment", priceTon: 16.0, url: "https://fragment.com" },
-      { id: 3, name: "Anonymous Mask", number: 77, emoji: "🎭", backdrop: "Onyx", market: "Portals", priceTon: 28.0, url: "https://t.me/portals" },
-      { id: 4, name: "Anonymous Mask", number: 904, emoji: "🎭", backdrop: "Crimson", market: "Marketapp", priceTon: 25.4, url: "https://marketapp.ws" },
-      { id: 5, name: "Kissed Frog", number: 215, emoji: "🐸", backdrop: "Emerald", market: "MRKT", priceTon: 9.2, url: "https://t.me/mrkt" },
-      { id: 6, name: "Kissed Frog", number: 1502, emoji: "🐸", backdrop: "Royal Blue", market: "Getgems", priceTon: 8.8, url: "https://getgems.io" },
-      { id: 7, name: "Plush Pepe", number: 33, emoji: "🐸", backdrop: "Gold", market: "Fragment", priceTon: 310.0, url: "https://fragment.com" },
-      { id: 8, name: "Jolly Chimp", number: 55, emoji: "🐵", backdrop: "Neon", market: "Marketapp", priceTon: 13.9, url: "https://marketapp.ws" }
+    // Градиенты карточек в зависимости от фона подарка
+    const BACKDROP_GRADIENTS = {
+      "Neon": "from-fuchsia-500/25 via-indigo-950/40 to-[#161920]",
+      "Midnight": "from-slate-700/40 via-blue-950/40 to-[#161920]",
+      "Cyber Gold": "from-amber-500/25 via-yellow-950/30 to-[#161920]",
+      "Crimson": "from-rose-500/25 via-red-950/35 to-[#161920]",
+      "Onyx": "from-zinc-700/45 via-neutral-900/50 to-[#161920]",
+      "Royal Blue": "from-blue-500/25 via-indigo-950/40 to-[#161920]",
+      "Emerald": "from-emerald-500/25 via-teal-950/35 to-[#161920]",
+      "Gold": "from-yellow-400/25 via-amber-950/35 to-[#161920]",
+      "Sapphire": "from-sky-500/25 via-blue-950/40 to-[#161920]"
+    };
+
+    // Встроенный набор актуальных лотов (цены напрямую 1:1 в GRAM)
+    const FALLBACK_GIFTS = [
+      { id: 1, name: "Jolly Chimp", number: 55, emoji: "🐵", image: "", backdrop: "Neon", market: "TG Market", priceGram: 13.4, url: "https://t.me" },
+      { id: 2, name: "Jolly Chimp", number: 412, emoji: "🐵", image: "", backdrop: "Midnight", market: "Getgems", priceGram: 14.5, url: "https://getgems.io" },
+      { id: 3, name: "Jolly Chimp", number: 1088, emoji: "🐵", image: "", backdrop: "Cyber Gold", market: "Fragment", priceGram: 16, url: "https://fragment.com" },
+      { id: 4, name: "Anonymous Mask", number: 904, emoji: "🎭", image: "", backdrop: "Crimson", market: "Marketapp", priceGram: 25.4, url: "https://marketapp.ws" },
+      { id: 5, name: "Anonymous Mask", number: 77, emoji: "🎭", image: "", backdrop: "Onyx", market: "TG Market", priceGram: 28, url: "https://t.me" },
+      { id: 6, name: "Anonymous Mask", number: 1420, emoji: "🎭", image: "", backdrop: "Sapphire", market: "Portals", priceGram: 29.5, url: "https://t.me/portals" },
+      { id: 7, name: "Kissed Frog", number: 1502, emoji: "🐸", image: "", backdrop: "Royal Blue", market: "Getgems", priceGram: 8.8, url: "https://getgems.io" },
+      { id: 8, name: "Kissed Frog", number: 215, emoji: "🐸", image: "", backdrop: "Emerald", market: "MRKT", priceGram: 9.2, url: "https://t.me/mrkt" },
+      { id: 9, name: "Plush Pepe", number: 419, emoji: "🐸", image: "", backdrop: "Emerald", market: "Getgems", priceGram: 285, url: "https://getgems.io" },
+      { id: 10, name: "Plush Pepe", number: 33, emoji: "🐸", image: "", backdrop: "Gold", market: "Fragment", priceGram: 310, url: "https://fragment.com" },
+      { id: 11, name: "Durov's Cap", number: 640, emoji: "🧢", image: "", backdrop: "Sapphire", market: "Marketapp", priceGram: 132.5, url: "https://marketapp.ws" },
+      { id: 12, name: "Durov's Cap", number: 12, emoji: "🧢", image: "", backdrop: "Onyx", market: "Fragment", priceGram: 145, url: "https://fragment.com" },
+      { id: 13, name: "Astral Shard", number: 512, emoji: "💎", image: "", backdrop: "Sapphire", market: "Getgems", priceGram: 59.5, url: "https://getgems.io" },
+      { id: 14, name: "Astral Shard", number: 18, emoji: "💎", image: "", backdrop: "Neon", market: "Portals", priceGram: 64, url: "https://t.me/portals" }
     ];
 
-    // Курс для примерного отображения в Stars (1 TON ≈ 250 Stars)
-    const TON_TO_STARS = 250;
-
+    let giftsList = [...FALLBACK_GIFTS];
     let state = {
       search: '',
       market: 'ALL',
-      sort: 'price_asc'
+      sort: 'price_asc',
+      onlyFloor: false
     };
 
     const searchInput = document.getElementById('searchInput');
     const clearBtn = document.getElementById('clearBtn');
     const marketFilters = document.getElementById('marketFilters');
-    const sortSelect = document.getElementById('sortSelect');
+    const floorBtn = document.getElementById('floorBtn');
     const giftsGrid = document.getElementById('giftsGrid');
     const resultsLabel = document.getElementById('resultsLabel');
-    const totalCount = document.getElementById('totalCount');
+    const syncStatus = document.getElementById('syncStatus');
 
-    function triggerHaptic(style = 'light') {
-      if (tg?.HapticFeedback) {
-        tg.HapticFeedback.impactOccurred(style);
-      }
+    function haptic(style = 'light') {
+      try {
+        if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred(style);
+      } catch (e) {}
     }
 
-    // Вычисляем минимальную цену для каждой коллекции, чтобы подсветить лучшую цену
-    function getLowestPricesByCollection(items) {
-      const minPrices = {};
+    let toastTimer;
+    function showToast(text) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastText').textContent = text;
+      toast.classList.remove('opacity-0', 'translate-y-2');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+      }, 2000);
+    }
+
+    function formatGram(val) {
+      return Number(val).toLocaleString('ru-RU') + ' GRAM';
+    }
+
+    function openMarketLink(event, url, marketName) {
+      if (event) event.stopPropagation();
+      haptic('medium');
+      showToast(`Открываем ${marketName || 'маркет'}...`);
+      setTimeout(() => {
+        if (tg && url.startsWith('https://t.me/')) {
+          tg.openTelegramLink(url);
+        } else if (tg) {
+          tg.openLink(url);
+        } else {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        }
+      }, 200);
+    }
+
+    // Вычисляем минимальную цену (флор) по каждой коллекции
+    function getFloorByCollection(items) {
+      const floors = {};
       items.forEach(item => {
-        if (!minPrices[item.name] || item.priceTon < minPrices[item.name]) {
-          minPrices[item.name] = item.priceTon;
+        if (floors[item.name] === undefined || item.priceGram < floors[item.name]) {
+          floors[item.name] = item.priceGram;
         }
       });
-      return minPrices;
+      return floors;
     }
 
-    function openMarketLink(url) {
-      triggerHaptic('medium');
-      if (tg && url.startsWith('https://t.me/')) {
-        tg.openTelegramLink(url);
-      } else if (tg) {
-        tg.openLink(url);
-      } else {
-        window.open(url, '_blank');
-      }
+    // Открытие детального модального окна со сравнением цен по площадкам
+    function openLotModal(id) {
+      haptic('light');
+      const item = giftsList.find(g => g.id === id);
+      if (!item) return;
+
+      const floors = getFloorByCollection(giftsList);
+      const collectionFloor = floors[item.name];
+      const isFloor = item.priceGram === collectionFloor;
+      const gradient = BACKDROP_GRADIENTS[item.backdrop] || 'from-sky-500/20 to-[#161920]';
+
+      const sameCollection = giftsList
+        .filter(g => g.name === item.name)
+        .sort((a, b) => a.priceGram - b.priceGram);
+
+      const visual = item.image
+        ? `<img src="${item.image}" alt="${item.name}" class="w-24 h-24 object-contain drop-shadow-2xl" />`
+        : `<div class="text-7xl my-1 drop-shadow-2xl select-none">${item.emoji || '🎁'}</div>`;
+
+      const modalContent = document.getElementById('modalContent');
+      modalContent.innerHTML = `
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl font-extrabold text-white">${item.name}</h2>
+              <span class="text-sm font-bold text-[#8b93a1]">#${item.number}</span>
+            </div>
+            <p class="text-xs text-[#8b93a1] mt-0.5">Фон: <span class="text-white/90 font-medium">${item.backdrop}</span></p>
+          </div>
+          <button onclick="closeModal()" class="p-2 rounded-full bg-white/[0.06] text-[#8b93a1] hover:text-white transition-colors" aria-label="Закрыть">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div class="relative rounded-2xl bg-gradient-to-b ${gradient} border border-white/10 p-5 flex flex-col items-center justify-center mb-4">
+          <span class="absolute top-3 left-3 text-[11px] font-bold px-2.5 py-1 rounded-lg ${item.market === 'TG Market' ? 'bg-sky-500 text-white' : 'bg-black/70 text-white backdrop-blur-md'}">
+            ${item.market}
+          </span>
+          ${isFloor ? '<span class="absolute top-3 right-3 text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-lg bg-emerald-500 text-[#052e16]">Флор коллекции</span>' : ''}
+          
+          ${visual}
+          
+          <div class="mt-3 text-center">
+            <div class="text-2xl font-extrabold text-sky-400 tracking-tight">${formatGram(item.priceGram)}</div>
+          </div>
+        </div>
+
+        <div class="mb-5">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-[11px] font-bold uppercase tracking-wider text-[#8b93a1]">Предложения по коллекции (${sameCollection.length})</h3>
+            <span class="text-[11px] font-semibold text-emerald-400">Флор: ${formatGram(collectionFloor)}</span>
+          </div>
+          <div class="space-y-2">
+            ${sameCollection.map(offer => {
+              const isCurrent = offer.id === item.id;
+              const diffPercent = collectionFloor > 0 ? Math.round(((offer.priceGram - collectionFloor) / collectionFloor) * 100) : 0;
+              return `
+                <div onclick="openLotModal(${offer.id})" class="flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${isCurrent ? 'bg-sky-400/15 border-sky-400/50' : 'bg-[#161920] border-white/[0.07] hover:border-white/20'}">
+                  <div class="flex items-center gap-2.5">
+                    <span class="text-[11px] font-bold px-2 py-0.5 rounded-md ${offer.market === 'TG Market' ? 'bg-sky-500 text-white' : 'bg-white/10 text-white'}">${offer.market}</span>
+                    <div>
+                      <div class="text-xs font-bold text-white">#${offer.number} · ${offer.backdrop}</div>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-xs font-extrabold text-sky-400">${formatGram(offer.priceGram)}</div>
+                    <div class="text-[10px] ${diffPercent === 0 ? 'text-emerald-400 font-semibold' : 'text-[#8b93a1]'}">
+                      ${diffPercent === 0 ? 'Лучшая цена' : `+${diffPercent}% к флору`}
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <button onclick="openMarketLink(event, '${item.url}', '${item.market}')" class="w-full py-3.5 rounded-xl bg-sky-400 hover:bg-sky-300 active:scale-[0.99] text-[#081018] font-extrabold text-sm shadow-lg shadow-sky-400/20 transition-all">
+          Купить · ${item.market} (${formatGram(item.priceGram)})
+        </button>
+      `;
+
+      document.getElementById('detailModal').classList.remove('hidden');
     }
 
+    function closeModal() {
+      document.getElementById('detailModal').classList.add('hidden');
+    }
+
+    // Рендер сетки карточек
     function render() {
-      const minPrices = getLowestPricesByCollection(GIFTS_DATA);
+      const floors = getFloorByCollection(giftsList);
+      const query = state.search.toLowerCase().trim();
 
-      // Фильтрация
-      let filtered = GIFTS_DATA.filter(item => {
+      let filtered = giftsList.filter(item => {
         const matchesMarket = state.market === 'ALL' || item.market === state.market;
-        const query = state.search.toLowerCase().trim();
-        const matchesSearch = !query || 
-          item.name.toLowerCase().includes(query) || 
+        const matchesSearch = !query ||
+          item.name.toLowerCase().includes(query) ||
           `#${item.number}`.includes(query) ||
           String(item.number).includes(query) ||
-          item.backdrop.toLowerCase().includes(query);
-        return matchesMarket && matchesSearch;
+          (item.backdrop && item.backdrop.toLowerCase().includes(query));
+        const matchesFloor = !state.onlyFloor || item.priceGram === floors[item.name];
+        return matchesMarket && matchesSearch && matchesFloor;
       });
 
-      // Сортировка
       filtered.sort((a, b) => {
-        if (state.sort === 'price_asc') return a.priceTon - b.priceTon;
-        if (state.sort === 'price_desc') return b.priceTon - a.priceTon;
+        if (state.sort === 'price_asc') return a.priceGram - b.priceGram;
+        if (state.sort === 'price_desc') return b.priceGram - a.priceGram;
         if (state.sort === 'num_asc') return a.number - b.number;
         return 0;
       });
 
-      totalCount.textContent = `Лотов: ${GIFTS_DATA.length}`;
       resultsLabel.textContent = `Найдено: ${filtered.length}`;
 
       if (filtered.length === 0) {
         giftsGrid.innerHTML = `
-          <div class="empty-state">
-            <span>🔎</span>
-            Подарки по вашему запросу не найдены
+          <div class="col-span-full flex flex-col items-center justify-center py-16 px-4 text-center">
+            <div class="text-4xl mb-3">🔎</div>
+            <p class="text-sm font-semibold text-white mb-1">По вашему запросу лоты в GRAM не найдены</p>
+            <p class="text-xs text-[#8b93a1] mb-4">Попробуйте сбросить фильтры или изменить поисковый запрос</p>
+            <button onclick="resetFilters()" class="px-4 py-2 rounded-xl bg-sky-400 text-[#081018] text-xs font-bold">
+              Сбросить фильтры
+            </button>
           </div>
         `;
         return;
       }
 
-      giftsGrid.innerHTML = filtered.map(item => {
-        const isBestPrice = item.priceTon === minPrices[item.name];
-        const starsApprox = Math.round(item.priceTon * TON_TO_STARS).toLocaleString('ru-RU');
+      giftsGrid.innerHTML = filtered.map((item, idx) => {
+        const isBest = item.priceGram === floors[item.name];
+        const isTgMarket = item.market === 'TG Market';
+        const gradient = BACKDROP_GRADIENTS[item.backdrop] || 'from-sky-400/15 to-[#161920]';
+        const visual = item.image
+          ? `<img src="${item.image}" alt="${item.name}" loading="lazy" class="w-3/4 h-3/4 object-contain group-hover:scale-105 transition-transform duration-200" />`
+          : `<div class="text-5xl sm:text-6xl group-hover:scale-110 transition-transform duration-200 select-none drop-shadow-xl">${item.emoji || '🎁'}</div>`;
 
         return `
-          <div class="card">
-            <div class="card-img-wrap">
-              <div class="market-tag">${item.market}</div>
-              ${isBestPrice ? '<div class="best-price-tag">Лучшая цена</div>' : ''}
-              <div>${item.emoji}</div>
+          <div onclick="openLotModal(${item.id})" style="animation-delay: ${Math.min(idx * 25, 220)}ms" class="card-animate group bg-[#161920] border border-white/[0.08] hover:border-white/20 rounded-2xl overflow-hidden flex flex-col cursor-pointer transition-all active:scale-[0.98]">
+            <div class="relative aspect-square w-full bg-gradient-to-b ${gradient} flex items-center justify-center overflow-hidden">
+              <span class="absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-md ${isTgMarket ? 'bg-sky-500 text-white shadow-md shadow-sky-500/25' : 'bg-black/70 backdrop-blur-md text-white'}">
+                ${item.market}
+              </span>
+              ${isBest ? '<span class="absolute top-2 right-2 text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-emerald-500 text-[#052e16]">Флор</span>' : ''}
+              ${visual}
             </div>
-            <div class="card-body">
-              <div>
-                <div class="gift-name">${item.name}</div>
-                <div class="gift-meta">#${item.number} · ${item.backdrop}</div>
+
+            <div class="p-3 flex flex-col flex-grow justify-between">
+              <div class="mb-2.5">
+                <div class="text-[14px] font-bold text-white truncate">${item.name}</div>
+                <div class="text-[11px] text-[#8b93a1] truncate mt-0.5">#${item.number} · ${item.backdrop}</div>
               </div>
+
               <div>
-                <div class="price-row">
-                  <span class="price-ton">${item.priceTon} TON</span>
-                  <span class="price-stars">~${starsApprox} ⭐️</span>
+                <div class="text-[15px] font-extrabold text-sky-400 tracking-tight mb-2">
+                  ${formatGram(item.priceGram)}
                 </div>
-                <button class="buy-btn" onclick="openMarketLink('${item.url}')">
-                  Перейти в ${item.market}
+                <button onclick="openMarketLink(event, '${item.url}', '${item.market}')" class="w-full py-2 rounded-xl bg-sky-400 hover:bg-sky-300 text-[#081018] text-xs font-bold transition-colors">
+                  Купить · ${item.market}
                 </button>
               </div>
             </div>
@@ -457,39 +458,108 @@
       }).join('');
     }
 
-    // Слушатели событий
-    searchInput.addEventListener('input', (e) => {
-      state.search = e.target.value;
-      clearBtn.style.display = state.search ? 'block' : 'none';
+    // Загрузка живых данных из gifts.json с автоматическим откатом на встроенную базу
+    async function loadLiveGifts() {
+      try {
+        const res = await fetch(`./gifts.json?t=${Date.now()}`);
+        if (!res.ok) throw new Error('JSON not found');
+        const data = await res.json();
+        if (Array.isArray(data.items) && data.items.length > 0) {
+          giftsList = data.items;
+          const time = data.updated_at
+            ? new Date(data.updated_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+            : 'Live';
+          syncStatus.textContent = `GRAM · ${time}`;
+          render();
+          return;
+        }
+      } catch (e) {
+        // Fallback при локальном запуске или отсутствии gifts.json
+      }
+      syncStatus.textContent = 'GRAM · Demo';
       render();
-    });
+    }
 
-    clearBtn.addEventListener('click', () => {
+    function clearSearch() {
       state.search = '';
       searchInput.value = '';
-      clearBtn.style.display = 'none';
-      triggerHaptic('light');
+      clearBtn.classList.add('hidden');
+      haptic();
+      render();
+    }
+
+    function toggleFloorOnly() {
+      state.onlyFloor = !state.onlyFloor;
+      if (state.onlyFloor) {
+        floorBtn.classList.add('bg-emerald-500/15', 'text-emerald-400', 'border-emerald-500/35');
+        floorBtn.classList.remove('bg-[#161920]', 'text-[#8b93a1]', 'border-white/[0.08]');
+      } else {
+        floorBtn.classList.remove('bg-emerald-500/15', 'text-emerald-400', 'border-emerald-500/35');
+        floorBtn.classList.add('bg-[#161920]', 'text-[#8b93a1]', 'border-white/[0.08]');
+      }
+      haptic();
+      render();
+    }
+
+    function handleSortChange(val) {
+      state.sort = val;
+      haptic();
+      render();
+    }
+
+    function resetFilters() {
+      state.search = '';
+      state.market = 'ALL';
+      state.onlyFloor = false;
+      searchInput.value = '';
+      clearBtn.classList.add('hidden');
+
+      floorBtn.classList.remove('bg-emerald-500/15', 'text-emerald-400', 'border-emerald-500/35');
+      floorBtn.classList.add('bg-[#161920]', 'text-[#8b93a1]', 'border-white/[0.08]');
+
+      document.querySelectorAll('.chip').forEach(c => {
+        if (c.dataset.market === 'ALL') {
+          c.classList.add('bg-sky-400', 'text-[#081018]', 'border-sky-400');
+          c.classList.remove('bg-[#161920]', 'text-[#8b93a1]', 'border-white/[0.08]');
+        } else {
+          c.classList.remove('bg-sky-400', 'text-[#081018]', 'border-sky-400');
+          c.classList.add('bg-[#161920]', 'text-[#8b93a1]', 'border-white/[0.08]');
+        }
+      });
+
+      haptic();
+      render();
+    }
+
+    searchInput.addEventListener('input', (e) => {
+      state.search = e.target.value;
+      if (state.search) {
+        clearBtn.classList.remove('hidden');
+      } else {
+        clearBtn.classList.add('hidden');
+      }
       render();
     });
 
     marketFilters.addEventListener('click', (e) => {
       const chip = e.target.closest('.chip');
       if (!chip) return;
-      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
+      document.querySelectorAll('.chip').forEach(c => {
+        c.classList.remove('bg-sky-400', 'text-[#081018]', 'border-sky-400');
+        c.classList.add('bg-[#161920]', 'text-[#8b93a1]', 'border-white/[0.08]');
+      });
+      chip.classList.add('bg-sky-400', 'text-[#081018]', 'border-sky-400');
+      chip.classList.remove('bg-[#161920]', 'text-[#8b93a1]', 'border-white/[0.08]');
       state.market = chip.dataset.market;
-      triggerHaptic('light');
+      haptic();
       render();
     });
 
-    sortSelect.addEventListener('change', (e) => {
-      state.sort = e.target.value;
-      triggerHaptic('light');
-      render();
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
     });
 
-    // Первый рендер
-    render();
+    loadLiveGifts();
   </script>
 </body>
 </html>
