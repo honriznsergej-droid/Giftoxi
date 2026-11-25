@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Gift Aggregator — Поисковик подарков Telegram</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg-color: var(--tg-theme-bg-color, #0f1115);
+      --secondary-bg: var(--tg-theme-secondary-bg-color, #181b22);
+      --text-color: var(--tg-theme-text-color, #ffffff);
+      --hint-color: var(--tg-theme-hint-color, #8e96a4);
+      --accent-color: var(--tg-theme-button-color, #2ea6ff);
+      --accent-text: var(--tg-theme-button-text-color, #ffffff);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --badge-best: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      padding-bottom: 24px;
+      overflow-x: hidden;
+    }
+
+    /* Шапка и поиск */
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background-color: var(--bg-color);
+      padding: 12px 16px 8px;
+      border-bottom: 1px solid var(--border-color);
+      backdrop-filter: blur(12px);
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .app-title {
+      font-size: 18px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .stats-badge {
+      font-size: 12px;
+      color: var(--hint-color);
+      background: var(--secondary-bg);
+      padding: 4px 8px;
+      border-radius: 8px;
+    }
+
+    .search-box {
+      position: relative;
+      margin-bottom: 10px;
+    }
+
+    .search-input {
+      width: 100%;
+      background-color: var(--secondary-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 10px 36px 10px 36px;
+      color: var(--text-color);
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent-color);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--hint-color);
+      font-size: 15px;
+      pointer-events: none;
+    }
+
+    .clear-btn {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--hint-color);
+      font-size: 16px;
+      cursor: pointer;
+      display: none;
+      padding: 4px;
+    }
+
+    /* Фильтры маркетов */
+    .filters-scroll {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      scrollbar-width: none;
+    }
+    .filters-scroll::-webkit-scrollbar {
+      display: none;
+    }
+
+    .chip {
+      background-color: var(--secondary-bg);
+      color: var(--hint-color);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .chip.active {
+      background-color: var(--accent-color);
+      color: var(--accent-text);
+      border-color: var(--accent-color);
+    }
+
+    /* Панель сортировки */
+    .controls-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      font-size: 13px;
+      color: var(--hint-color);
+    }
+
+    .sort-select {
+      background: var(--secondary-bg);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    /* Сетка карточек */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      padding: 0 16px;
+    }
+
+    .card {
+      background-color: var(--secondary-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: transform 0.15s ease;
+    }
+
+    .card:active {
+      transform: scale(0.98);
+    }
+
+    .card-img-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: radial-gradient(circle at center, rgba(46, 166, 255, 0.12), transparent 70%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 56px;
+    }
+
+    .market-tag {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      color: #fff;
+    }
+
+    .best-price-tag {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 6px;
+      border-radius: 6px;
+      background: var(--badge-best);
+      color: #fff;
+      text-transform: uppercase;
+    }
+
+    .card-body {
+      padding: 10px 12px 12px;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+      justify-content: space-between;
+    }
+
+    .gift-name {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .gift-meta {
+      font-size: 12px;
+      color: var(--hint-color);
+      margin-bottom: 10px;
+    }
+
+    .price-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .price-ton {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent-color);
+    }
+
+    .price-stars {
+      font-size: 11px;
+      color: var(--hint-color);
+    }
+
+    .buy-btn {
+      width: 100%;
+      background-color: var(--accent-color);
+      color: var(--accent-text);
+      border: none;
+      border-radius: 10px;
+      padding: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    /* Пустое состояние */
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 48px 16px;
+      color: var(--hint-color);
+    }
+    .empty-state span {
+      font-size: 40px;
+      display: block;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="top-bar">
+      <div class="app-title">🎁 Gift Scanner</div>
+      <div class="stats-badge" id="totalCount">Загрузка...</div>
+    </div>
+
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" class="search-input" placeholder="Поиск подарка или #номера..." />
+      <button id="clearBtn" class="clear-btn">✕</button>
+    </div>
+
+    <div class="filters-scroll" id="marketFilters">
+      <div class="chip active" data-market="ALL">Все маркеты</div>
+      <div class="chip" data-market="Fragment">Fragment</div>
+      <div class="chip" data-market="Getgems">Getgems</div>
+      <div class="chip" data-market="Marketapp">Marketapp</div>
+      <div class="chip" data-market="Portals">Portals</div>
+      <div class="chip" data-market="MRKT">MRKT</div>
+    </div>
+  </div>
+
+  <div class="controls-bar">
+    <span id="resultsLabel">Найдено: 0</span>
+    <select id="sortSelect" class="sort-select">
+      <option value="price_asc">Сначала дешевле</option>
+      <option value="price_desc">Сначала дороже</option>
+      <option value="num_asc">По номеру #</option>
+    </select>
+  </div>
+
+  <div class="grid" id="giftsGrid"></div>
+
+  <script>
+    // Инициализация Telegram Web App
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+    }
+
+    // Демо-база данных (на следующем шаге заменим на fetch('https://.../gifts.json'))
+    const GIFTS_DATA = [
+      { id: 1, name: "Jolly Chimp", number: 412, emoji: "🐵", backdrop: "Midnight", market: "Getgems", priceTon: 14.5, url: "https://getgems.io" },
+      { id: 2, name: "Jolly Chimp", number: 1088, emoji: "🐵", backdrop: "Cyber Gold", market: "Fragment", priceTon: 16.0, url: "https://fragment.com" },
+      { id: 3, name: "Anonymous Mask", number: 77, emoji: "🎭", backdrop: "Onyx", market: "Portals", priceTon: 28.0, url: "https://t.me/portals" },
+      { id: 4, name: "Anonymous Mask", number: 904, emoji: "🎭", backdrop: "Crimson", market: "Marketapp", priceTon: 25.4, url: "https://marketapp.ws" },
+      { id: 5, name: "Kissed Frog", number: 215, emoji: "🐸", backdrop: "Emerald", market: "MRKT", priceTon: 9.2, url: "https://t.me/mrkt" },
+      { id: 6, name: "Kissed Frog", number: 1502, emoji: "🐸", backdrop: "Royal Blue", market: "Getgems", priceTon: 8.8, url: "https://getgems.io" },
+      { id: 7, name: "Plush Pepe", number: 33, emoji: "🐸", backdrop: "Gold", market: "Fragment", priceTon: 310.0, url: "https://fragment.com" },
+      { id: 8, name: "Jolly Chimp", number: 55, emoji: "🐵", backdrop: "Neon", market: "Marketapp", priceTon: 13.9, url: "https://marketapp.ws" }
+    ];
+
+    // Курс для примерного отображения в Stars (1 TON ≈ 250 Stars)
+    const TON_TO_STARS = 250;
+
+    let state = {
+      search: '',
+      market: 'ALL',
+      sort: 'price_asc'
+    };
+
+    const searchInput = document.getElementById('searchInput');
+    const clearBtn = document.getElementById('clearBtn');
+    const marketFilters = document.getElementById('marketFilters');
+    const sortSelect = document.getElementById('sortSelect');
+    const giftsGrid = document.getElementById('giftsGrid');
+    const resultsLabel = document.getElementById('resultsLabel');
+    const totalCount = document.getElementById('totalCount');
+
+    function triggerHaptic(style = 'light') {
+      if (tg?.HapticFeedback) {
+        tg.HapticFeedback.impactOccurred(style);
+      }
+    }
+
+    // Вычисляем минимальную цену для каждой коллекции, чтобы подсветить лучшую цену
+    function getLowestPricesByCollection(items) {
+      const minPrices = {};
+      items.forEach(item => {
+        if (!minPrices[item.name] || item.priceTon < minPrices[item.name]) {
+          minPrices[item.name] = item.priceTon;
+        }
+      });
+      return minPrices;
+    }
+
+    function openMarketLink(url) {
+      triggerHaptic('medium');
+      if (tg && url.startsWith('https://t.me/')) {
+        tg.openTelegramLink(url);
+      } else if (tg) {
+        tg.openLink(url);
+      } else {
+        window.open(url, '_blank');
+      }
+    }
+
+    function render() {
+      const minPrices = getLowestPricesByCollection(GIFTS_DATA);
+
+      // Фильтрация
+      let filtered = GIFTS_DATA.filter(item => {
+        const matchesMarket = state.market === 'ALL' || item.market === state.market;
+        const query = state.search.toLowerCase().trim();
+        const matchesSearch = !query || 
+          item.name.toLowerCase().includes(query) || 
+          `#${item.number}`.includes(query) ||
+          String(item.number).includes(query) ||
+          item.backdrop.toLowerCase().includes(query);
+        return matchesMarket && matchesSearch;
+      });
+
+      // Сортировка
+      filtered.sort((a, b) => {
+        if (state.sort === 'price_asc') return a.priceTon - b.priceTon;
+        if (state.sort === 'price_desc') return b.priceTon - a.priceTon;
+        if (state.sort === 'num_asc') return a.number - b.number;
+        return 0;
+      });
+
+      totalCount.textContent = `Лотов: ${GIFTS_DATA.length}`;
+      resultsLabel.textContent = `Найдено: ${filtered.length}`;
+
+      if (filtered.length === 0) {
+        giftsGrid.innerHTML = `
+          <div class="empty-state">
+            <span>🔎</span>
+            Подарки по вашему запросу не найдены
+          </div>
+        `;
+        return;
+      }
+
+      giftsGrid.innerHTML = filtered.map(item => {
+        const isBestPrice = item.priceTon === minPrices[item.name];
+        const starsApprox = Math.round(item.priceTon * TON_TO_STARS).toLocaleString('ru-RU');
+
+        return `
+          <div class="card">
+            <div class="card-img-wrap">
+              <div class="market-tag">${item.market}</div>
+              ${isBestPrice ? '<div class="best-price-tag">Лучшая цена</div>' : ''}
+              <div>${item.emoji}</div>
+            </div>
+            <div class="card-body">
+              <div>
+                <div class="gift-name">${item.name}</div>
+                <div class="gift-meta">#${item.number} · ${item.backdrop}</div>
+              </div>
+              <div>
+                <div class="price-row">
+                  <span class="price-ton">${item.priceTon} TON</span>
+                  <span class="price-stars">~${starsApprox} ⭐️</span>
+                </div>
+                <button class="buy-btn" onclick="openMarketLink('${item.url}')">
+                  Перейти в ${item.market}
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Слушатели событий
+    searchInput.addEventListener('input', (e) => {
+      state.search = e.target.value;
+      clearBtn.style.display = state.search ? 'block' : 'none';
+      render();
+    });
+
+    clearBtn.addEventListener('click', () => {
+      state.search = '';
+      searchInput.value = '';
+      clearBtn.style.display = 'none';
+      triggerHaptic('light');
+      render();
+    });
+
+    marketFilters.addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      state.market = chip.dataset.market;
+      triggerHaptic('light');
+      render();
+    });
+
+    sortSelect.addEventListener('change', (e) => {
+      state.sort = e.target.value;
+      triggerHaptic('light');
+      render();
+    });
+
+    // Первый рендер
+    render();
+  </script>
+</body>
+</html>
